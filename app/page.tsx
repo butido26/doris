@@ -1,21 +1,6 @@
-const notices = [
-  {
-    icon: "↗",
-    category: "Threads 回覆",
-    title: "新留言通知會顯示在這裡",
-    detail: "Make 偵測到新回覆後，網站會提供 Notion 核准入口。",
-    time: "串接完成後顯示時間",
-    state: "待串接",
-  },
-  {
-    icon: "✎",
-    category: "社群草稿",
-    title: "核准前先檢查文案與圖片",
-    detail: "每則貼文都會先停在待核准狀態，不會直接發布。",
-    time: "發布前核准",
-    state: "核准保護中",
-  },
-];
+import { redirect } from "next/navigation";
+import { createClient } from "@/lib/supabase/server";
+import { signOutAction } from "@/app/login/actions";
 
 const workflows = [
   { icon: "◎", name: "社群內容", description: "LINE、Threads、Instagram 圖文草稿與發布核准", status: "規劃中" },
@@ -23,7 +8,22 @@ const workflows = [
   { icon: "♡", name: "生活紀錄", description: "保養品庫存、運動紀錄與體態筆記入口", status: "待連結" },
 ];
 
-export default function Home() {
+export default async function Home() {
+  if (!process.env.NEXT_PUBLIC_SUPABASE_URL || !process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY) {
+    redirect("/login?setup=1");
+  }
+
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) redirect("/login");
+
+  const { data: notifications } = await supabase
+    .from("notifications")
+    .select("id, category, title, detail, action_url, created_at, read_at")
+    .order("created_at", { ascending: false })
+    .limit(10);
+  const unreadCount = notifications?.filter((notice) => !notice.read_at).length ?? 0;
+
   return (
     <main className="app-shell">
       <aside className="sidebar">
@@ -34,7 +34,7 @@ export default function Home() {
         <div className="nav-label">工作空間</div>
         <nav className="nav-list" aria-label="主要導覽">
           <a className="nav-item active" href="#home"><span>⌂</span>總覽</a>
-          <a className="nav-item" href="#notices"><span>◉</span>通知中心 <i>2</i></a>
+          <a className="nav-item" href="#notices"><span>◉</span>通知中心 {unreadCount > 0 && <i>{unreadCount}</i>}</a>
           <a className="nav-item" href="#workflows"><span>⤳</span>工作流</a>
           <a className="nav-item" href="#social"><span>✎</span>社群內容</a>
           <a className="nav-item" href="#ads"><span>▥</span>廣告分析</a>
@@ -45,8 +45,8 @@ export default function Home() {
         </nav>
         <div className="sidebar-bottom">
           <div className="avatar">D</div>
-          <div><strong>Doris</strong><small>私人工作空間</small></div>
-          <span className="lock">♙</span>
+          <div className="account-label"><strong>Doris</strong><small>{user.email}</small></div>
+          <form action={signOutAction}><button className="sign-out-button" type="submit">登出</button></form>
         </div>
       </aside>
 
@@ -74,15 +74,15 @@ export default function Home() {
           </section>
 
           <section className="section-block" id="notices">
-            <div className="section-heading"><div><span className="section-kicker">需要你留意</span><h2>通知中心 <span className="count">2</span></h2></div><a href="#notices" className="text-link">查看全部 <span>→</span></a></div>
+            <div className="section-heading"><div><span className="section-kicker">需要你留意</span><h2>通知中心 <span className="count">{unreadCount}</span></h2></div></div>
             <div className="notice-list">
-              {notices.map((notice) => (
-                <article className="notice-card" key={notice.title}>
-                  <div className="notice-icon">{notice.icon}</div>
-                  <div className="notice-content"><span className="notice-category">{notice.category}</span><h3>{notice.title}</h3><p>{notice.detail}</p></div>
-                  <div className="notice-side"><span className="status-tag">{notice.state}</span><small>{notice.time}</small></div>
+              {notifications?.length ? notifications.map((notice) => (
+                <article className="notice-card" key={notice.id}>
+                  <div className="notice-icon">↗</div>
+                  <div className="notice-content"><span className="notice-category">{notice.category}</span><h3>{notice.title}</h3><p>{notice.detail}</p>{notice.action_url && <a className="notice-action" href={notice.action_url} target="_blank" rel="noreferrer">前往 Notion 處理 →</a>}</div>
+                  <div className="notice-side"><span className="status-tag">{notice.read_at ? "已讀" : "待處理"}</span><small>{new Date(notice.created_at).toLocaleString("zh-TW", { timeZone: "Asia/Taipei" })}</small></div>
                 </article>
-              ))}
+              )) : <div className="empty-notices">目前沒有新通知。Make 串接完成後，新留言會顯示在這裡。</div>}
             </div>
           </section>
 
@@ -98,7 +98,7 @@ export default function Home() {
             </div>
           </section>
 
-          <footer className="page-footer"><span>你的個人工作台</span><span>連接 Make 後，通知和狀態會在這裡更新。</span></footer>
+          <footer className="page-footer"><span>你的個人工作台</span><span>通知由 Make 傳入，核准仍在 Notion 完成。</span></footer>
         </div>
       </section>
     </main>
