@@ -5,6 +5,11 @@ export async function updateSession(request: NextRequest) {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const key = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
   const isLoginPage = request.nextUrl.pathname === "/login";
+  const isNotificationApi = request.nextUrl.pathname === "/api/notifications";
+
+  // Make authenticates notification intake with the endpoint's Bearer secret.
+  // Let the API handler perform that check instead of redirecting webhooks to /login.
+  if (isNotificationApi) return NextResponse.next({ request });
 
   if (!url || !key) {
     if (isLoginPage) return NextResponse.next({ request });
