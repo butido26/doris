@@ -65,7 +65,7 @@ export async function POST(request: NextRequest) {
   }, { onConflict: "event_key", ignoreDuplicates: true });
 
   if (error) {
-    console.error("Notification upsert failed", { code: error.code, status: error.status });
+    console.error("Notification upsert failed", { code: error.code });
     return NextResponse.json({ error: "Could not save notification" }, { status: 500 });
   }
   return NextResponse.json({ received: true }, { status: 202 });
