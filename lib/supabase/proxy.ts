@@ -4,7 +4,15 @@ import { NextResponse, type NextRequest } from "next/server";
 export async function updateSession(request: NextRequest) {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const key = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
-  if (!url || !key) return NextResponse.next({ request });
+  const isLoginPage = request.nextUrl.pathname === "/login";
+
+  if (!url || !key) {
+    if (isLoginPage) return NextResponse.next({ request });
+    const loginUrl = request.nextUrl.clone();
+    loginUrl.pathname = "/login";
+    loginUrl.search = "?setup=1";
+    return NextResponse.redirect(loginUrl);
+  }
 
   let response = NextResponse.next({ request });
   const supabase = createServerClient(url, key, {
@@ -19,7 +27,7 @@ export async function updateSession(request: NextRequest) {
   });
 
   const { data: { user } } = await supabase.auth.getUser();
-  const isPublicRoute = request.nextUrl.pathname === "/login" || request.nextUrl.pathname.startsWith("/auth/");
+  const isPublicRoute = isLoginPage || request.nextUrl.pathname.startsWith("/auth/");
   if (!user && !isPublicRoute) {
     const loginUrl = request.nextUrl.clone();
     loginUrl.pathname = "/login";
@@ -28,7 +36,7 @@ export async function updateSession(request: NextRequest) {
     response.cookies.getAll().forEach((cookie) => redirectResponse.cookies.set(cookie));
     return redirectResponse;
   }
-  if (user && request.nextUrl.pathname === "/login") {
+  if (user && isLoginPage) {
     const homeUrl = request.nextUrl.clone();
     homeUrl.pathname = "/";
     homeUrl.search = "";
