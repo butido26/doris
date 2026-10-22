@@ -24,7 +24,7 @@ type SpeechRecognitionLike = {
 };
 type SpeechWindow = Window & { SpeechRecognition?: new () => SpeechRecognitionLike; webkitSpeechRecognition?: new () => SpeechRecognitionLike; };
 
-export default function SocialWorkspace({ initialDrafts, aiConfigured, storageConfigured }: { initialDrafts: Draft[]; aiConfigured: boolean; storageConfigured: boolean }) {
+export default function SocialWorkspace({ initialDrafts, aiConfigured, storageConfigured, makeConfigured }: { initialDrafts: Draft[]; aiConfigured: boolean; storageConfigured: boolean; makeConfigured: boolean }) {
   const [drafts, setDrafts] = useState(initialDrafts);
   const [instruction, setInstruction] = useState("");
   const [content, setContent] = useState("");
@@ -34,6 +34,7 @@ export default function SocialWorkspace({ initialDrafts, aiConfigured, storageCo
   const [listening, setListening] = useState(false);
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
+  const [makeTestBusy, setMakeTestBusy] = useState(false);
 
   useEffect(() => {
     const speechWindow = window as SpeechWindow;
@@ -88,10 +89,23 @@ export default function SocialWorkspace({ initialDrafts, aiConfigured, storageCo
     } finally { setBusy(false); }
   }
 
+  async function testMakeConnection() {
+    setError(""); setMessage(""); setMakeTestBusy(true);
+    try {
+      const response = await fetch("/api/social-drafts/make-schema-test", { method: "POST" });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error ?? "Make 連線測試失敗。");
+      setMessage("Make 已收到一筆虛構欄位測試資料；這不是你的草稿，也沒有發布貼文。");
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : "Make 連線測試失敗。");
+    } finally { setMakeTestBusy(false); }
+  }
+
   return <div className="social-grid">
     <section className="social-card assistant-panel">
       <div className="social-card-heading"><div><span className="section-kicker">AI WORK ASSISTANT</span><h2>告訴小秘書你要做什麼</h2></div><span className="draft-badge">Threads</span></div>
       <p className="social-hint">例如：「幫我寫一篇新品上市面膜的 Threads 貼文，語氣親切，附上這個圖片網址。」</p>
+      {makeConfigured && <div className="assistant-form-actions"><button type="button" className="secondary-button" onClick={testMakeConnection} disabled={makeTestBusy}>{makeTestBusy ? "測試中…" : "測試 Make 連線（只送虛構資料）"}</button></div>}
       <form onSubmit={generateDraft} className="assistant-form">
         <label htmlFor="assistant-instruction">指令</label>
         <textarea id="assistant-instruction" rows={4} value={instruction} onChange={(event) => setInstruction(event.target.value)} placeholder="輸入需求，或按麥克風口述……" maxLength={3000} />
