@@ -12,6 +12,9 @@ type Draft = {
   created_at: string;
 };
 
+const PLATFORMS = ["Threads", "Facebook", "Instagram", "LINE"] as const;
+type Platform = (typeof PLATFORMS)[number];
+
 type SpeechRecognitionResult = { 0: { transcript: string }; };
 type SpeechRecognitionEvent = { results: ArrayLike<SpeechRecognitionResult>; };
 type SpeechRecognitionLike = {
@@ -26,6 +29,7 @@ type SpeechWindow = Window & { SpeechRecognition?: new () => SpeechRecognitionLi
 
 export default function SocialWorkspace({ initialDrafts, aiConfigured, storageConfigured, makeConfigured, makeSubmissionEnabled }: { initialDrafts: Draft[]; aiConfigured: boolean; storageConfigured: boolean; makeConfigured: boolean; makeSubmissionEnabled: boolean }) {
   const [drafts, setDrafts] = useState(initialDrafts);
+  const [platform, setPlatform] = useState<Platform>("Threads");
   const [instruction, setInstruction] = useState("");
   const [content, setContent] = useState("");
   const [imageUrl, setImageUrl] = useState("");
@@ -62,7 +66,7 @@ export default function SocialWorkspace({ initialDrafts, aiConfigured, storageCo
     if (!aiConfigured) { setError("AI 文案服務尚未設定。你可以先在下方手動撰寫並保存草稿；AI 服務設定好後再用指令生成。"); return; }
     setBusy(true);
     try {
-      const response = await fetch("/api/assistant/draft", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ instruction: instruction.trim(), platform: "Threads" }) });
+      const response = await fetch("/api/assistant/draft", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ instruction: instruction.trim(), platform }) });
       const data = await response.json();
       if (!response.ok) throw new Error(data.error ?? "文案生成失敗，請稍後再試。");
       setContent(data.content ?? "");
@@ -79,7 +83,7 @@ export default function SocialWorkspace({ initialDrafts, aiConfigured, storageCo
     if (imageUrl && !/^https:\/\//i.test(imageUrl.trim())) { setError("圖片網址需以 https:// 開頭。"); return; }
     setBusy(true);
     try {
-      const response = await fetch("/api/social-drafts", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ platform: "Threads", content: content.trim(), image_url: imageUrl.trim() || null, scheduled_for: scheduledFor ? new Date(scheduledFor).toISOString() : null }) });
+      const response = await fetch("/api/social-drafts", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ platform, content: content.trim(), image_url: imageUrl.trim() || null, scheduled_for: scheduledFor ? new Date(scheduledFor).toISOString() : null }) });
       const data = await response.json();
       if (!response.ok) throw new Error(data.error ?? "保存失敗。");
       setDrafts((current) => [data.draft, ...current]);
@@ -126,9 +130,10 @@ export default function SocialWorkspace({ initialDrafts, aiConfigured, storageCo
 
   return <div className="social-grid">
     <section className="social-card assistant-panel">
-      <div className="social-card-heading"><div><span className="section-kicker">AI WORK ASSISTANT</span><h2>告訴小秘書你要做什麼</h2></div><span className="draft-badge">Threads</span></div>
-      <p className="social-hint">例如：「幫我寫一篇新品上市面膜的 Threads 貼文，語氣親切，附上這個圖片網址。」</p>
-      {makeConfigured && <div className="assistant-form-actions"><button type="button" className="secondary-button" onClick={testMakeConnection} disabled={makeTestBusy}>{makeTestBusy ? "測試中…" : "測試 Make 連線（只送虛構資料）"}</button></div>}
+      <div className="social-card-heading"><div><span className="section-kicker">AI WORK ASSISTANT</span><h2>告訴小秘書你要做什麼</h2></div><span className="draft-badge">{platform}</span></div>
+      <div className="platform-picker" role="group" aria-label="選擇社群平台">{PLATFORMS.map((item) => <button key={item} type="button" className={platform === item ? "platform-choice active" : "platform-choice"} aria-pressed={platform === item} onClick={() => setPlatform(item)}>{item}</button>)}</div>
+      <p className="social-hint">選擇平台後，可以請小秘書起草或手動編輯；各平台的發布串接尚未全部設定。</p>
+      {makeConfigured && platform === "Threads" && <div className="assistant-form-actions"><button type="button" className="secondary-button" onClick={testMakeConnection} disabled={makeTestBusy}>{makeTestBusy ? "測試中…" : "測試 Threads Make 連線（只送虛構資料）"}</button></div>}
       <form onSubmit={generateDraft} className="assistant-form">
         <label htmlFor="assistant-instruction">指令</label>
         <textarea id="assistant-instruction" rows={4} value={instruction} onChange={(event) => setInstruction(event.target.value)} placeholder="輸入需求，或按麥克風口述……" maxLength={3000} />
@@ -140,13 +145,13 @@ export default function SocialWorkspace({ initialDrafts, aiConfigured, storageCo
     <section className="social-card editor-panel">
       <div className="social-card-heading"><div><span className="section-kicker">MANUAL OR AI DRAFT</span><h2>貼文草稿</h2></div><span className="status-draft">未發布</span></div>
       <form onSubmit={saveDraft} className="draft-form">
-        <label htmlFor="draft-content">Threads 文案</label>
+        <label htmlFor="draft-content">{platform} 文案</label>
         <textarea id="draft-content" rows={7} value={content} onChange={(event) => setContent(event.target.value)} placeholder="你可以直接在這裡手動輸入，或先用小秘書產生再修改。" maxLength={5000} />
         <label htmlFor="draft-image">圖片網址（選填）</label>
         <input id="draft-image" type="url" inputMode="url" placeholder="https://……" value={imageUrl} onChange={(event) => setImageUrl(event.target.value)} />
         <label htmlFor="draft-schedule">希望發布時間（選填）</label>
         <input id="draft-schedule" type="datetime-local" value={scheduledFor} onChange={(event) => setScheduledFor(event.target.value)} />
-        <p className="schedule-note">填寫時間只會記在草稿中；Make 排程尚未串接，不會因此自動發文。</p>
+        <p className="schedule-note">預定時間只會記在草稿中；這個平台的排程尚未串接，不會因此自動發文。</p>
         {!storageConfigured && <p className="setup-note">Supabase 草稿資料表還沒建立。完成資料庫升級後即可保存到帳號。</p>}
         <button className="primary-button save-draft-button" disabled={busy || !storageConfigured}>{busy ? "保存中…" : "保存草稿"}</button>
       </form>
@@ -156,7 +161,7 @@ export default function SocialWorkspace({ initialDrafts, aiConfigured, storageCo
 
     <section className="social-card drafts-panel">
       <div className="social-card-heading"><div><span className="section-kicker">SAVED TO YOUR ACCOUNT</span><h2>最近草稿 <span className="count">{drafts.length}</span></h2></div></div>
-      {drafts.length ? <div className="saved-drafts">{drafts.map((draft) => <article className="saved-draft" key={draft.id}><div className="saved-draft-top"><span>Threads · {statusLabel(draft.status)}</span><small>{new Date(draft.created_at).toLocaleString("zh-TW", { timeZone: "Asia/Taipei" })}</small></div><p>{draft.content}</p>{draft.image_url && <a href={draft.image_url} target="_blank" rel="noreferrer">查看圖片網址 ↗</a>}{draft.scheduled_for && <small className="saved-schedule">希望發布：{new Date(draft.scheduled_for).toLocaleString("zh-TW", { timeZone: "Asia/Taipei" })}</small>}{draft.status === "draft" && <button type="button" className="secondary-button" disabled={!makeSubmissionEnabled || approvalBusyId === draft.id} onClick={() => submitDraftForApproval(draft.id)}>{approvalBusyId === draft.id ? "送交中…" : makeSubmissionEnabled ? "送交 Notion 審核" : "送交審核（設定中）"}</button>}</article>)}</div> : <p className="empty-drafts">還沒有保存的草稿。你可以先手動輸入一篇測試。</p>}
+      {drafts.length ? <div className="saved-drafts">{drafts.map((draft) => <article className="saved-draft" key={draft.id}><div className="saved-draft-top"><span>{draft.platform} · {statusLabel(draft.status)}</span><small>{new Date(draft.created_at).toLocaleString("zh-TW", { timeZone: "Asia/Taipei" })}</small></div><p>{draft.content}</p>{draft.image_url && <a href={draft.image_url} target="_blank" rel="noreferrer">查看圖片網址 ↗</a>}{draft.scheduled_for && <small className="saved-schedule">希望發布：{new Date(draft.scheduled_for).toLocaleString("zh-TW", { timeZone: "Asia/Taipei" })}</small>}{draft.status === "draft" && draft.platform === "Threads" && <button type="button" className="secondary-button" disabled={!makeSubmissionEnabled || approvalBusyId === draft.id} onClick={() => submitDraftForApproval(draft.id)}>{approvalBusyId === draft.id ? "送交中…" : makeSubmissionEnabled ? "送交 Notion 審核" : "送交審核（設定中）"}</button>}{draft.status === "draft" && draft.platform !== "Threads" && <small className="saved-schedule">此平台的送審與發布串接尚未設定，可先保存草稿。</small>}</article>)}</div> : <p className="empty-drafts">還沒有保存的草稿。你可以先手動輸入一篇測試。</p>}
     </section>
   </div>;
 }

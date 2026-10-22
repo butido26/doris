@@ -37,7 +37,7 @@ export default async function SocialPage() {
         <header className="topbar"><div className="breadcrumb"><Link href="/">我的工作空間</Link><span>/</span>社群內容</div><div className="top-actions"><span className="secure-pill"><b /> 私人空間</span><Link className="profile-button" href="/" aria-label="回到首頁">D</Link></div></header>
         <div className="content social-content">
           <section className="welcome-row"><div><p className="eyebrow">SOCIAL WORKSPACE</p><h1>社群內容 <span>✦</span></h1><p className="subtitle">先用小秘書起草，也可以直接在下方手動編輯。</p></div></section>
-          <div className="social-safety"><strong>草稿模式</strong><span>目前只會保存草稿，不會發布或啟動排程。發布仍需你核准，Make 串接完成後才會送往核准流程。</span></div>
+          <div className="social-safety"><strong>草稿模式</strong><span>可分別保存 Facebook、Instagram、Threads、LINE 草稿。平台串接尚未全部完成；目前不會自動發布或啟動排程。</span></div>
           <SocialWorkspace initialDrafts={drafts ?? []} aiConfigured={Boolean(process.env.OPENAI_API_KEY && process.env.OPENAI_MODEL)} storageConfigured={!draftLoadError} makeConfigured={Boolean(process.env.MAKE_THREADS_APPROVAL_WEBHOOK_URL && process.env.MAKE_THREADS_APPROVAL_API_KEY)} makeSubmissionEnabled={process.env.MAKE_THREADS_SUBMISSIONS_ENABLED === "true"} />
         </div>
       </section>
