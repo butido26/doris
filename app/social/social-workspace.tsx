@@ -113,7 +113,7 @@ export default function SocialWorkspace({ initialDrafts, aiConfigured, storageCo
       const data = await response.json();
       if (!response.ok) throw new Error(data.error ?? "送交審核失敗。");
       setDrafts((current) => current.map((draft) => draft.id === draftId ? { ...draft, status: "awaiting_approval" } : draft));
-      setMessage("草稿已送到 Notion 待審核；核准前不會發布。發布排程仍需 Make 發文流程完成設定。");
+      setMessage("草稿已送到 Notion 待審核；核准前不會發布。Instagram 發文與排程仍需完成 Make 串接。");
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "送交審核失敗。請先檢查 Notion，避免重複送出。");
     } finally { setApprovalBusyId(null); }
@@ -133,7 +133,7 @@ export default function SocialWorkspace({ initialDrafts, aiConfigured, storageCo
       <div className="social-card-heading"><div><span className="section-kicker">AI WORK ASSISTANT</span><h2>告訴小秘書你要做什麼</h2></div><span className="draft-badge">{platform}</span></div>
       <div className="platform-picker" role="group" aria-label="選擇社群平台">{PLATFORMS.map((item) => <button key={item} type="button" className={platform === item ? "platform-choice active" : "platform-choice"} aria-pressed={platform === item} onClick={() => setPlatform(item)}>{item}</button>)}</div>
       <p className="social-hint">選擇平台後，可以請小秘書起草或手動編輯；各平台的發布串接尚未全部設定。</p>
-      {makeConfigured && platform === "Threads" && <div className="assistant-form-actions"><button type="button" className="secondary-button" onClick={testMakeConnection} disabled={makeTestBusy}>{makeTestBusy ? "測試中…" : "測試 Threads Make 連線（只送虛構資料）"}</button></div>}
+      {makeConfigured && (platform === "Threads" || platform === "Instagram") && <div className="assistant-form-actions"><button type="button" className="secondary-button" onClick={testMakeConnection} disabled={makeTestBusy}>{makeTestBusy ? "測試中…" : platform === "Instagram" ? "測試 Instagram 欄位連線（只送虛構資料）" : "測試 Threads Make 連線（只送虛構資料）"}</button></div>}
       <form onSubmit={generateDraft} className="assistant-form">
         <label htmlFor="assistant-instruction">指令</label>
         <textarea id="assistant-instruction" rows={4} value={instruction} onChange={(event) => setInstruction(event.target.value)} placeholder="輸入需求，或按麥克風口述……" maxLength={3000} />
@@ -161,7 +161,7 @@ export default function SocialWorkspace({ initialDrafts, aiConfigured, storageCo
 
     <section className="social-card drafts-panel">
       <div className="social-card-heading"><div><span className="section-kicker">SAVED TO YOUR ACCOUNT</span><h2>最近草稿 <span className="count">{drafts.length}</span></h2></div></div>
-      {drafts.length ? <div className="saved-drafts">{drafts.map((draft) => <article className="saved-draft" key={draft.id}><div className="saved-draft-top"><span>{draft.platform} · {statusLabel(draft.status)}</span><small>{new Date(draft.created_at).toLocaleString("zh-TW", { timeZone: "Asia/Taipei" })}</small></div><p>{draft.content}</p>{draft.image_url && <a href={draft.image_url} target="_blank" rel="noreferrer">查看圖片網址 ↗</a>}{draft.scheduled_for && <small className="saved-schedule">希望發布：{new Date(draft.scheduled_for).toLocaleString("zh-TW", { timeZone: "Asia/Taipei" })}</small>}{draft.status === "draft" && draft.platform === "Threads" && <button type="button" className="secondary-button" disabled={!makeSubmissionEnabled || approvalBusyId === draft.id} onClick={() => submitDraftForApproval(draft.id)}>{approvalBusyId === draft.id ? "送交中…" : makeSubmissionEnabled ? "送交 Notion 審核" : "送交審核（設定中）"}</button>}{draft.status === "draft" && draft.platform !== "Threads" && <small className="saved-schedule">此平台的送審與發布串接尚未設定，可先保存草稿。</small>}</article>)}</div> : <p className="empty-drafts">還沒有保存的草稿。你可以先手動輸入一篇測試。</p>}
+      {drafts.length ? <div className="saved-drafts">{drafts.map((draft) => <article className="saved-draft" key={draft.id}><div className="saved-draft-top"><span>{draft.platform} · {statusLabel(draft.status)}</span><small>{new Date(draft.created_at).toLocaleString("zh-TW", { timeZone: "Asia/Taipei" })}</small></div><p>{draft.content}</p>{draft.image_url && <a href={draft.image_url} target="_blank" rel="noreferrer">查看圖片網址 ↗</a>}{draft.scheduled_for && <small className="saved-schedule">希望發布：{new Date(draft.scheduled_for).toLocaleString("zh-TW", { timeZone: "Asia/Taipei" })}</small>}{draft.status === "draft" && (draft.platform === "Threads" || draft.platform === "Instagram") && <button type="button" className="secondary-button" disabled={!makeSubmissionEnabled || approvalBusyId === draft.id} onClick={() => submitDraftForApproval(draft.id)}>{approvalBusyId === draft.id ? "送交中…" : makeSubmissionEnabled ? "送交 Notion 審核" : "送交審核（設定中）"}</button>}{draft.status === "draft" && draft.platform !== "Threads" && draft.platform !== "Instagram" && <small className="saved-schedule">此平台的送審與發布串接尚未設定，可先保存草稿。</small>}{draft.status === "draft" && draft.platform === "Instagram" && <small className="saved-schedule">送審只會建立 Notion 待審核資料；核准後的 IG 發布流程仍在設定。</small>}</article>)}</div> : <p className="empty-drafts">還沒有保存的草稿。你可以先手動輸入一篇測試。</p>}
     </section>
   </div>;
 }

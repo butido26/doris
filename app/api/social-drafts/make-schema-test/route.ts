@@ -37,6 +37,7 @@ export async function POST(request: NextRequest) {
       headers: { "Content-Type": "application/json", "x-make-apikey": apiKey },
       body: JSON.stringify({
         draft_id: "schema-detection-test",
+        platform: "Instagram",
         content: "欄位偵測測試貼文（不會發布）",
         image_url: null,
         scheduled_for: "2026-10-24T03:00:00.000Z",
