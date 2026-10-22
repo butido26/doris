@@ -36,7 +36,7 @@ export default async function Home() {
           <a className="nav-item active" href="#home"><span>⌂</span>總覽</a>
           <a className="nav-item" href="#notices"><span>◉</span>通知中心 {unreadCount > 0 && <i>{unreadCount}</i>}</a>
           <a className="nav-item" href="#workflows"><span>⤳</span>工作流</a>
-          <a className="nav-item" href="#social"><span>✎</span>社群內容</a>
+          <a className="nav-item" href="/social"><span>✎</span>社群內容</a>
           <a className="nav-item" href="#ads"><span>▥</span>廣告分析</a>
         </nav>
         <div className="nav-label personal-label">個人生活</div>
@@ -69,8 +69,8 @@ export default async function Home() {
           <section className="assistant-card" aria-label="AI 指令介面">
             <div className="assistant-orb">✦</div>
             <div className="assistant-copy"><span className="section-kicker">AI 工作小幫手</span><h2>用一句話開始一項工作</h2><p>例如：幫我整理本週廣告成效，或草擬一則 Threads 貼文。</p></div>
-            <button className="assistant-button" disabled title="連接 AI 服務後啟用">開始對話 <span>↗</span></button>
-            <div className="coming-soon">介面預覽 · AI 尚未連接</div>
+            <a className="assistant-button" href="/social">開始對話 <span>↗</span></a>
+            <div className="coming-soon">先建立草稿 · AI 金鑰設定後可生成文案</div>
           </section>
 
           <section className="section-block" id="notices">
@@ -92,7 +92,7 @@ export default async function Home() {
               {workflows.map((workflow) => (
                 <article className="workflow-card" key={workflow.name} id={workflow.name === "社群內容" ? "social" : workflow.name === "廣告分析" ? "ads" : "life"}>
                   <div className="workflow-top"><span className="workflow-icon">{workflow.icon}</span><span className="workflow-status"><b />{workflow.status}</span></div>
-                  <h3>{workflow.name}</h3><p>{workflow.description}</p><a className="workflow-link" href="#workflows">了解工作流 <span>→</span></a>
+                  <h3>{workflow.name}</h3><p>{workflow.description}</p><a className="workflow-link" href={workflow.name === "社群內容" ? "/social" : "#workflows"}>了解工作流 <span>→</span></a>
                 </article>
               ))}
             </div>
