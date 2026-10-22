@@ -39,6 +39,7 @@ export async function POST(request: NextRequest) {
         draft_id: "schema-detection-test",
         content: "欄位偵測測試貼文（不會發布）",
         image_url: null,
+        scheduled_for: "2026-10-24T03:00:00.000Z",
         is_test: true,
       }),
       cache: "no-store",
@@ -53,3 +54,4 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "連線 Make 逾時或失敗，請確認 Webhook 正在等待偵測。" }, { status: 502 });
   }
 }
+

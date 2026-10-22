@@ -24,7 +24,7 @@ type SpeechRecognitionLike = {
 };
 type SpeechWindow = Window & { SpeechRecognition?: new () => SpeechRecognitionLike; webkitSpeechRecognition?: new () => SpeechRecognitionLike; };
 
-export default function SocialWorkspace({ initialDrafts, aiConfigured, storageConfigured, makeConfigured }: { initialDrafts: Draft[]; aiConfigured: boolean; storageConfigured: boolean; makeConfigured: boolean }) {
+export default function SocialWorkspace({ initialDrafts, aiConfigured, storageConfigured, makeConfigured, makeSubmissionEnabled }: { initialDrafts: Draft[]; aiConfigured: boolean; storageConfigured: boolean; makeConfigured: boolean; makeSubmissionEnabled: boolean }) {
   const [drafts, setDrafts] = useState(initialDrafts);
   const [instruction, setInstruction] = useState("");
   const [content, setContent] = useState("");
@@ -35,6 +35,7 @@ export default function SocialWorkspace({ initialDrafts, aiConfigured, storageCo
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
   const [makeTestBusy, setMakeTestBusy] = useState(false);
+  const [approvalBusyId, setApprovalBusyId] = useState<string | null>(null);
 
   useEffect(() => {
     const speechWindow = window as SpeechWindow;
@@ -101,6 +102,28 @@ export default function SocialWorkspace({ initialDrafts, aiConfigured, storageCo
     } finally { setMakeTestBusy(false); }
   }
 
+  async function submitDraftForApproval(draftId: string) {
+    setError(""); setMessage(""); setApprovalBusyId(draftId);
+    try {
+      const response = await fetch("/api/social-drafts/submit", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ draft_id: draftId }) });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error ?? "送交審核失敗。");
+      setDrafts((current) => current.map((draft) => draft.id === draftId ? { ...draft, status: "awaiting_approval" } : draft));
+      setMessage("草稿已送到 Notion 待審核；核准前不會發布。發布排程仍需 Make 發文流程完成設定。");
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : "送交審核失敗。請先檢查 Notion，避免重複送出。");
+    } finally { setApprovalBusyId(null); }
+  }
+
+  function statusLabel(status: string) {
+    if (status === "draft") return "草稿";
+    if (status === "awaiting_approval") return "送審中";
+    if (status === "scheduled") return "已排程";
+    if (status === "published") return "已發布";
+    if (status === "failed") return "發佈失敗";
+    return status;
+  }
+
   return <div className="social-grid">
     <section className="social-card assistant-panel">
       <div className="social-card-heading"><div><span className="section-kicker">AI WORK ASSISTANT</span><h2>告訴小秘書你要做什麼</h2></div><span className="draft-badge">Threads</span></div>
@@ -133,7 +156,8 @@ export default function SocialWorkspace({ initialDrafts, aiConfigured, storageCo
 
     <section className="social-card drafts-panel">
       <div className="social-card-heading"><div><span className="section-kicker">SAVED TO YOUR ACCOUNT</span><h2>最近草稿 <span className="count">{drafts.length}</span></h2></div></div>
-      {drafts.length ? <div className="saved-drafts">{drafts.map((draft) => <article className="saved-draft" key={draft.id}><div className="saved-draft-top"><span>Threads · {draft.status === "draft" ? "草稿" : draft.status}</span><small>{new Date(draft.created_at).toLocaleString("zh-TW", { timeZone: "Asia/Taipei" })}</small></div><p>{draft.content}</p>{draft.image_url && <a href={draft.image_url} target="_blank" rel="noreferrer">查看圖片網址 ↗</a>}{draft.scheduled_for && <small className="saved-schedule">希望發布：{new Date(draft.scheduled_for).toLocaleString("zh-TW", { timeZone: "Asia/Taipei" })}</small>}</article>)}</div> : <p className="empty-drafts">還沒有保存的草稿。你可以先手動輸入一篇測試。</p>}
+      {drafts.length ? <div className="saved-drafts">{drafts.map((draft) => <article className="saved-draft" key={draft.id}><div className="saved-draft-top"><span>Threads · {statusLabel(draft.status)}</span><small>{new Date(draft.created_at).toLocaleString("zh-TW", { timeZone: "Asia/Taipei" })}</small></div><p>{draft.content}</p>{draft.image_url && <a href={draft.image_url} target="_blank" rel="noreferrer">查看圖片網址 ↗</a>}{draft.scheduled_for && <small className="saved-schedule">希望發布：{new Date(draft.scheduled_for).toLocaleString("zh-TW", { timeZone: "Asia/Taipei" })}</small>}{draft.status === "draft" && <button type="button" className="secondary-button" disabled={!makeSubmissionEnabled || approvalBusyId === draft.id} onClick={() => submitDraftForApproval(draft.id)}>{approvalBusyId === draft.id ? "送交中…" : makeSubmissionEnabled ? "送交 Notion 審核" : "送交審核（設定中）"}</button>}</article>)}</div> : <p className="empty-drafts">還沒有保存的草稿。你可以先手動輸入一篇測試。</p>}
     </section>
   </div>;
 }
+
