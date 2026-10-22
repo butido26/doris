@@ -49,7 +49,9 @@ export async function POST(request: NextRequest) {
     .eq("user_id", user.id)
     .maybeSingle();
   if (readError || !draft) return NextResponse.json({ error: "找不到這筆草稿，請重新整理後再試。" }, { status: 404 });
-  if (draft.platform !== "Threads") return NextResponse.json({ error: "目前只支援 Threads 草稿。" }, { status: 400 });
+  if (draft.platform !== "Threads" && draft.platform !== "Instagram") {
+    return NextResponse.json({ error: "目前只支援 Threads 與 Instagram 草稿送審。" }, { status: 400 });
+  }
   if (draft.status !== "draft") return NextResponse.json({ error: "這筆草稿已送交或處理中，請勿重複送出。" }, { status: 409 });
 
   const { data: claimedDraft, error: claimError } = await supabase
@@ -68,6 +70,7 @@ export async function POST(request: NextRequest) {
       headers: { "Content-Type": "application/json", "x-make-apikey": config.apiKey },
       body: JSON.stringify({
         draft_id: draft.id,
+        platform: draft.platform,
         content: draft.content,
         image_url: draft.image_url,
         scheduled_for: draft.scheduled_for,
