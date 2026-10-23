@@ -55,4 +55,3 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "連線 AI 服務逾時或失敗，請稍後再試。" }, { status: 502 });
   }
 }
-

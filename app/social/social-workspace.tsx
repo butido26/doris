@@ -165,4 +165,3 @@ export default function SocialWorkspace({ initialDrafts, aiConfigured, storageCo
     </section>
   </div>;
 }
-

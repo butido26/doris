@@ -1,6 +1,6 @@
 @import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Noto+Sans+TC:wght@400;500;600;700&display=swap');
 
-:root{--ink:#202a35;--muted:#7d8995;--line:#e9edf0;--paper:#fff;--canvas:#f6f8f8;--teal:#287f72;--teal-light:#eaf5f2;--violet:#7662a9;--violet-light:#f2eef9;--shadow:0 10px 32px rgba(36,54,65,.06)}
+:root{--ink:#26332d;--muted:#78857e;--line:#e5e9e4;--paper:#fffefa;--canvas:#f5f6f2;--teal:#176247;--teal-light:#e8f1e9;--violet:#527c65;--violet-light:#edf3ed;--shadow:0 10px 32px rgba(35,57,45,.07)}
 *{box-sizing:border-box}
 html{scroll-behavior:smooth}
 body{margin:0;background:var(--canvas);color:var(--ink);font-family:'DM Sans','Noto Sans TC',sans-serif;font-size:14px}
@@ -61,3 +61,21 @@ a{color:inherit;text-decoration:none}
 @media(max-width:900px){.social-grid{grid-template-columns:1fr}.editor-panel,.drafts-panel{grid-column:auto;grid-row:auto}}
 @media(max-width:640px){.social-card{padding:16px}.social-safety{align-items:flex-start;flex-direction:column;gap:7px}.social-card-heading h2{font-size:15px}.saved-draft-top{flex-direction:column}}
 
+/* Nature-inspired palette: bright warm neutrals, forest green, and quiet wood tones. */
+:root{color-scheme:light;--forest:#174b38;--leaf:#2c7657;--sage:#e8f0e8;--wood:#a77b55;--wood-light:#f4eee6}
+body{background:var(--canvas);color:var(--ink)}
+.sidebar,.topbar,.today-card,.notice-card,.workflow-card,.social-card,.login-card{background-color:var(--paper)}
+.brand-mark,.primary-button,.login-form button{background:var(--forest)}
+.nav-item.active{background:#e8f0e8;color:var(--forest)}
+.nav-item.active>span,.workflow-link,.notice-action,.saved-draft a{color:var(--leaf)}
+.nav-item i,.count,.draft-badge,.status-draft,.platform-choice.active{background:#e8f0e8;color:var(--forest)}
+.assistant-card{background:linear-gradient(110deg,#eaf1e9 0%,#f3f4ef 62%,#f4eee6 100%);border-color:#e2e9df}
+.assistant-orb,.workflow-icon,.notice-icon{background:#e8f0e8;color:var(--leaf)}
+.assistant-card:after{border-color:rgba(35,101,70,.1);box-shadow:0 0 0 22px rgba(35,101,70,.03),0 0 0 46px rgba(35,101,70,.02)}
+.today-card .sun-icon{background:var(--wood-light);color:var(--wood)}
+.welcome-row h1 span{color:var(--leaf)}
+.notice-card:nth-child(2) .notice-icon,.workflow-card:nth-child(3) .workflow-icon{background:#edf2eb;color:#527c65}
+.platform-choice.active{border-color:#7da78c;box-shadow:0 0 0 2px rgba(44,118,87,.1)}
+.login-shell{background:radial-gradient(circle at 15% 15%,#e7f0e7 0,transparent 30%),radial-gradient(circle at 90% 85%,#f3eee6 0,transparent 32%),var(--canvas)}
+.login-form input:focus,.assistant-form textarea:focus,.draft-form textarea:focus,.draft-form input:focus{border-color:#78a58b;box-shadow:0 0 0 3px rgba(35,101,70,.11)}
+.outline-button,.secondary-button,.sign-out-button{border-color:#dfe6df;color:#526b5e;background:#fffefa}

@@ -55,20 +55,15 @@ export async function POST(request: NextRequest) {
   const admin = createSupabaseClient(supabaseUrl, serviceRoleKey, {
     auth: { autoRefreshToken: false, persistSession: false },
   });
-  const { error } = await admin.from("notifications").insert({
+  const { error } = await admin.from("notifications").upsert({
     user_id: ownerId,
     event_key: eventKey,
     category,
     title,
     detail,
     action_url: actionUrl || null,
-  });
+  }, { onConflict: "event_key", ignoreDuplicates: true });
 
-  // Treat a repeated event key as already delivered without requiring SELECT access.
-  if (error?.code === "23505") return NextResponse.json({ received: true, duplicate: true }, { status: 202 });
-  if (error) {
-    console.error("Notification insert failed", { code: error.code });
-    return NextResponse.json({ error: "Could not save notification" }, { status: 500 });
-  }
+  if (error) return NextResponse.json({ error: "Could not save notification" }, { status: 500 });
   return NextResponse.json({ received: true }, { status: 202 });
 }

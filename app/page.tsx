@@ -1,6 +1,6 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
-import { signOutAction } from "@/app/login/actions";
+import { signOutAction } from "./login/actions";
 
 const workflows = [
   { icon: "◎", name: "社群內容", description: "LINE、Threads、Instagram 圖文草稿與發布核准", status: "規劃中" },
