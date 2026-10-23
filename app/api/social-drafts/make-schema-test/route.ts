@@ -55,4 +55,3 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "連線 Make 逾時或失敗，請確認 Webhook 正在等待偵測。" }, { status: 502 });
   }
 }
-
