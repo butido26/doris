@@ -24,7 +24,7 @@
   - 已修改：`tsconfig.json`
   - 尚未追蹤：`AGENTS.md`、`next-env.d.ts`、`package-lock.json`
 - 以上檔案仍只在這台電腦的工作目錄，尚未確認已提交或推到 GitHub。切換電腦前須先決定如何保存／同步；不可用 reset、clean 或覆蓋方式清掉它們。
-- 為讓電腦 1 讀到交接內容，這份筆記會單獨新增到同一個 GitHub 分支；不會順便提交上述本機程式檔。筆記提交後，電腦 2 的本機分支會比遠端少這一個文件提交，先保存本機修改，再同步遠端更新。
+- 為讓電腦 1 讀到交接內容，這份筆記已單獨新增到同一個 GitHub 分支；不會順便提交上述本機程式檔。電腦 2 的本機工作目錄仍有未提交檔案，先保存本機修改，再同步遠端新增的交接文件提交。
 - `AGENTS.md` 是 Next.js 開發工具產生的規則檔，提醒此專案使用 Next.js 16；改程式前先讀它，並依它指示查看本機 `node_modules/next/dist/docs/` 的相應文件。`next-env.d.ts` 也是 Next.js 產生的型別檔。
 - 本機檢查結果：Node `v24.15.0`、npm `11.12.1`、`node_modules` 存在、`package-lock.json` 存在、`.env.example` 與 `.env.local` 存在。只確認 `.env.local` 存在，沒有把內容放入筆記；不可貼出、提交或複製其中的密鑰。
 - 本次沒有重跑 build，也沒有在此交接作業中修改網站程式或部署網站。舊交接檔記載配色變更尚未部署；公開網站目前的部署版本仍請在 Vercel 核對，不要單靠舊筆記判定。
@@ -42,7 +42,7 @@
 ## 可直接貼給電腦 1 的接手指令
 
 ```text
-請接續 Doris 專案的電腦 2 工作，先讀取 DORIS_PC2_TO_PC1_HANDOFF_2026-10-23.md、專案 AGENTS.md、README.md 和 HANDOFF.md。
+請接續 Doris 專案的電腦 2 工作，先讀取 GitHub 分支 codex/workflow-handoff-sync 上的 HANDOFF_PC2_TO_PC1_2026-10-23.md、專案 AGENTS.md、README.md 和 HANDOFF.md。
 
 先檢查 C:\Users\SKU5\Documents\doris 的 Git 分支和工作目錄，保留所有現有修改。電腦 2 的狀態是分支 codex/workflow-handoff-sync，另有 tsconfig.json 修改，以及未追蹤的 AGENTS.md、next-env.d.ts、package-lock.json；先確認這些是否已同步，絕不可 reset、clean、覆蓋或合併 main。先回報差異，再處理安全同步。
 
