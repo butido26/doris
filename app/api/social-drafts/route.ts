@@ -35,4 +35,3 @@ export async function POST(request: NextRequest) {
   if (error) return NextResponse.json({ error: "草稿未能保存。請確認 Supabase 的社群草稿資料表已建立，然後再試。" }, { status: 503 });
   return NextResponse.json({ draft }, { status: 201 });
 }
-
