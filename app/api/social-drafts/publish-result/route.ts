@@ -11,7 +11,15 @@ export async function POST(request: NextRequest) {
   const body = typeof input === "object" && input !== null ? input as Record<string, unknown> : {};
   const draftId = typeof body.draft_id === "string" ? body.draft_id : "";
   const result = body.result === "published" || body.result === "failed" ? body.result : null;
-  const postId = typeof body.platform_post_id === "string" ? body.platform_post_id.slice(0, 300) : null;
+  let postId = typeof body.platform_post_id === "string" ? body.platform_post_id.trim().slice(0, 300) : null;
+  if (postId?.startsWith("{")) {
+    try {
+      const response = JSON.parse(postId) as { id?: unknown };
+      postId = typeof response.id === "string" ? response.id.slice(0, 300) : null;
+    } catch {
+      postId = null;
+    }
+  }
   const publishedUrl = typeof body.published_url === "string" && /^https:\/\//i.test(body.published_url) ? body.published_url.slice(0, 2048) : null;
   const errorMessage = typeof body.error === "string" ? body.error.slice(0, 1000) : null;
   if (!draftId || !result) return NextResponse.json({ error: "缺少草稿 ID 或有效發佈結果。" }, { status: 400 });
@@ -27,3 +35,4 @@ export async function POST(request: NextRequest) {
   if (!data) return NextResponse.json({ error: "草稿不是發布中狀態，結果未套用。" }, { status: 409 });
   return NextResponse.json({ draft_id: data.id, status: data.status });
 }
+
