@@ -55,15 +55,21 @@ export async function POST(request: NextRequest) {
   const admin = createSupabaseClient(supabaseUrl, serviceRoleKey, {
     auth: { autoRefreshToken: false, persistSession: false },
   });
-  const { error } = await admin.from("notifications").upsert({
+  const { error } = await admin.from("notifications").insert({
     user_id: ownerId,
     event_key: eventKey,
     category,
     title,
     detail,
     action_url: actionUrl || null,
-  }, { onConflict: "event_key", ignoreDuplicates: true });
+  });
 
-  if (error) return NextResponse.json({ error: "Could not save notification" }, { status: 500 });
-  return NextResponse.json({ received: true }, { status: 202 });
+  // The service role is intentionally limited to INSERT on this table. Using
+  // upsert with an explicit conflict target also requires SELECT on that key.
+  // Keep event_key idempotent by treating a duplicate insert as already saved.
+  if (error && error.code !== "23505") {
+    return NextResponse.json({ error: "Could not save notification" }, { status: 500 });
+  }
+  return NextResponse.json({ received: true, duplicate: error?.code === "23505" }, { status: 202 });
 }
+
