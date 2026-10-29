@@ -22,5 +22,6 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "無法取得發布工作。" }, { status: 503 });
   }
   if (!draft) return NextResponse.json({ error: "草稿已被處理或目前未核准，略過以防重複發布。" }, { status: 409 });
-  return NextResponse.json({ draft });
+  // Keep the full draft for existing consumers and expose platform fields at the top level so Make can route on a typed field.
+  return NextResponse.json({ ...draft, draft });
 }
