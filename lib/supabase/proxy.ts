@@ -1,15 +1,24 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 
+const AUTOMATION_API_PATHS = new Set([
+  "/api/social-drafts/claim",
+  "/api/social-drafts/publish-result",
+  "/api/social-drafts/notion-intake",
+  "/api/social-drafts/notion-approve",
+]);
+
 export async function updateSession(request: NextRequest) {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const key = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
-  const isLoginPage = request.nextUrl.pathname === "/login";
-  const isNotificationApi = request.nextUrl.pathname === "/api/notifications";
+  const pathname = request.nextUrl.pathname;
+  const isLoginPage = pathname === "/login";
+  const isNotificationApi = pathname === "/api/notifications";
+  const isAutomationApi = AUTOMATION_API_PATHS.has(pathname);
 
-  // Make authenticates notification intake with the endpoint's Bearer secret.
-  // Let the API handler perform that check instead of redirecting webhooks to /login.
-  if (isNotificationApi) return NextResponse.next({ request });
+  // These webhook routes authenticate with their own server-side shared secret.
+  // Let each handler verify that secret instead of redirecting Make to /login HTML.
+  if (isNotificationApi || isAutomationApi) return NextResponse.next({ request });
 
   if (!url || !key) {
     if (isLoginPage) return NextResponse.next({ request });
@@ -32,7 +41,7 @@ export async function updateSession(request: NextRequest) {
   });
 
   const { data: { user } } = await supabase.auth.getUser();
-  const isPublicRoute = isLoginPage || request.nextUrl.pathname.startsWith("/auth/");
+  const isPublicRoute = isLoginPage || pathname.startsWith("/auth/");
   if (!user && !isPublicRoute) {
     const loginUrl = request.nextUrl.clone();
     loginUrl.pathname = "/login";
