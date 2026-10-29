@@ -79,7 +79,7 @@ export default async function Home() {
               {notifications?.length ? notifications.map((notice) => (
                 <article className="notice-card" key={notice.id}>
                   <div className="notice-icon">↗</div>
-                  <div className="notice-content"><span className="notice-category">{notice.category}</span><h3>{notice.title}</h3><p>{notice.detail}</p>{notice.action_url && <a className="notice-action" href={notice.action_url} target="_blank" rel="noreferrer">前往 Notion 處理 →</a>}</div>
+                  <div className="notice-content"><span className="notice-category">{notice.category}</span><h3>{notice.title}</h3><p>{notice.detail}</p>{notice.action_url && <a className="notice-action" href={notice.action_url} target="_blank" rel="noreferrer">{notice.category === "Threads 回覆" ? "查看 Threads 貼文 →" : "開啟相關連結 →"}</a>}</div>
                   <div className="notice-side"><span className="status-tag">{notice.read_at ? "已讀" : "待處理"}</span><small>{new Date(notice.created_at).toLocaleString("zh-TW", { timeZone: "Asia/Taipei" })}</small></div>
                 </article>
               )) : <div className="empty-notices">目前沒有新通知。Make 串接完成後，新留言會顯示在這裡。</div>}
