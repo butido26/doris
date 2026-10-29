@@ -10,6 +10,12 @@ type Draft = {
   scheduled_for: string | null;
   status: string;
   created_at: string;
+  approved_at?: string | null;
+  approved_via?: string | null;
+  published_at?: string | null;
+  platform_post_id?: string | null;
+  published_url?: string | null;
+  publish_error?: string | null;
 };
 
 const PLATFORMS = ["Threads", "Facebook", "Instagram", "LINE"] as const;
@@ -27,7 +33,7 @@ type SpeechRecognitionLike = {
 };
 type SpeechWindow = Window & { SpeechRecognition?: new () => SpeechRecognitionLike; webkitSpeechRecognition?: new () => SpeechRecognitionLike; };
 
-export default function SocialWorkspace({ initialDrafts, aiConfigured, storageConfigured, makeConfigured, makeSubmissionEnabled }: { initialDrafts: Draft[]; aiConfigured: boolean; storageConfigured: boolean; makeConfigured: boolean; makeSubmissionEnabled: boolean }) {
+export default function SocialWorkspace({ initialDrafts, aiConfigured, storageConfigured, makeConfigured, makeSubmissionEnabled, publishEnabled }: { initialDrafts: Draft[]; aiConfigured: boolean; storageConfigured: boolean; makeConfigured: boolean; makeSubmissionEnabled: boolean; publishEnabled: boolean }) {
   const [drafts, setDrafts] = useState(initialDrafts);
   const [platform, setPlatform] = useState<Platform>("Threads");
   const [instruction, setInstruction] = useState("");
@@ -86,9 +92,23 @@ export default function SocialWorkspace({ initialDrafts, aiConfigured, storageCo
       const response = await fetch("/api/social-drafts", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ platform, content: content.trim(), image_url: imageUrl.trim() || null, scheduled_for: scheduledFor ? new Date(scheduledFor).toISOString() : null }) });
       const data = await response.json();
       if (!response.ok) throw new Error(data.error ?? "保存失敗。");
-      setDrafts((current) => [data.draft, ...current]);
-      setMessage("草稿已保存到你的工作台。尚未送交核准、尚未排程，也不會自動發布。");
+      let savedDraft = data.draft as Draft;
+      setDrafts((current) => [savedDraft, ...current]);
       setContent(""); setInstruction(""); setImageUrl(""); setScheduledFor("");
+      if ((platform === "Threads" || platform === "Instagram") && makeSubmissionEnabled) {
+        try {
+          const submitResponse = await fetch("/api/social-drafts/submit", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ draft_id: savedDraft.id }) });
+          const submitData = await submitResponse.json();
+          if (!submitResponse.ok) throw new Error(submitData.error ?? "Notion 同步沒有完成。");
+          savedDraft = { ...savedDraft, status: "awaiting_approval" };
+          setDrafts((current) => current.map((draft) => draft.id === savedDraft.id ? savedDraft : draft));
+          setMessage("草稿已保存，並已送到 Notion 留存與待核准。之後可直接在工作台或 Notion 核准；核准會立即觸發發布。");
+        } catch {
+          setMessage("草稿已保存到工作台，但 Notion 同步結果不確定。先確認 Notion 是否已有此草稿，再決定是否重試，避免重複建立資料列。");
+        }
+      } else {
+        setMessage("草稿已保存到工作台。Notion 送審流程尚未啟用，因此目前不會建立 Notion 資料列，也不會發布。");
+      }
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "保存失敗。請確認資料表已建立後再試。");
     } finally { setBusy(false); }
@@ -113,15 +133,35 @@ export default function SocialWorkspace({ initialDrafts, aiConfigured, storageCo
       const data = await response.json();
       if (!response.ok) throw new Error(data.error ?? "送交審核失敗。");
       setDrafts((current) => current.map((draft) => draft.id === draftId ? { ...draft, status: "awaiting_approval" } : draft));
-      setMessage("草稿已送到 Notion 待審核；核准前不會發布。Instagram 發文與排程仍需完成 Make 串接。");
+      setMessage("草稿已送到 Notion 待核准。核准後的發布仍需完成 Make 發布情境設定。");
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "送交審核失敗。請先檢查 Notion，避免重複送出。");
+    } finally { setApprovalBusyId(null); }
+  }
+
+  async function approveAndPublishDraft(draftId: string) {
+    const draft = drafts.find((item) => item.id === draftId);
+    if (!draft) { setError("找不到這筆草稿，請重新整理後再試。"); return; }
+    const preview = draft.content.length > 240 ? `${draft.content.slice(0, 240)}…` : draft.content;
+    const imageNotice = draft.image_url ? "\n\n這篇包含圖片網址。" : "";
+    if (!window.confirm(`核准後會立即交給 Make 發布，可能公開在 ${draft.platform}。\n\n文案：\n${preview}${imageNotice}\n\n請確認文案與圖片正確後再繼續。`)) return;
+    setError(""); setMessage(""); setApprovalBusyId(draftId);
+    try {
+      const response = await fetch("/api/social-drafts/approve", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ draft_id: draftId }) });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error ?? "核准發布失敗。");
+      setDrafts((current) => current.map((draft) => draft.id === draftId ? { ...draft, status: "approved" } : draft));
+      setMessage("已在工作台核准，並交給 Make 發布流程處理。發布結果將回寫工作台；Notion 同步由 Make 流程處理。");
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : "核准發布失敗。請先查看草稿狀態與 Make 執行紀錄，避免重複操作。");
     } finally { setApprovalBusyId(null); }
   }
 
   function statusLabel(status: string) {
     if (status === "draft") return "草稿";
     if (status === "awaiting_approval") return "送審中";
+    if (status === "approved") return "已核准，待發布";
+    if (status === "publishing") return "發布中";
     if (status === "scheduled") return "已排程";
     if (status === "published") return "已發布";
     if (status === "failed") return "發佈失敗";
@@ -161,7 +201,7 @@ export default function SocialWorkspace({ initialDrafts, aiConfigured, storageCo
 
     <section className="social-card drafts-panel">
       <div className="social-card-heading"><div><span className="section-kicker">SAVED TO YOUR ACCOUNT</span><h2>最近草稿 <span className="count">{drafts.length}</span></h2></div></div>
-      {drafts.length ? <div className="saved-drafts">{drafts.map((draft) => <article className="saved-draft" key={draft.id}><div className="saved-draft-top"><span>{draft.platform} · {statusLabel(draft.status)}</span><small>{new Date(draft.created_at).toLocaleString("zh-TW", { timeZone: "Asia/Taipei" })}</small></div><p>{draft.content}</p>{draft.image_url && <a href={draft.image_url} target="_blank" rel="noreferrer">查看圖片網址 ↗</a>}{draft.scheduled_for && <small className="saved-schedule">希望發布：{new Date(draft.scheduled_for).toLocaleString("zh-TW", { timeZone: "Asia/Taipei" })}</small>}{draft.status === "draft" && (draft.platform === "Threads" || draft.platform === "Instagram") && <button type="button" className="secondary-button" disabled={!makeSubmissionEnabled || approvalBusyId === draft.id} onClick={() => submitDraftForApproval(draft.id)}>{approvalBusyId === draft.id ? "送交中…" : makeSubmissionEnabled ? "送交 Notion 審核" : "送交審核（設定中）"}</button>}{draft.status === "draft" && draft.platform !== "Threads" && draft.platform !== "Instagram" && <small className="saved-schedule">此平台的送審與發布串接尚未設定，可先保存草稿。</small>}{draft.status === "draft" && draft.platform === "Instagram" && <small className="saved-schedule">送審只會建立 Notion 待審核資料；核准後的 IG 發布流程仍在設定。</small>}</article>)}</div> : <p className="empty-drafts">還沒有保存的草稿。你可以先手動輸入一篇測試。</p>}
+      {drafts.length ? <div className="saved-drafts">{drafts.map((draft) => <article className="saved-draft" key={draft.id}><div className="saved-draft-top"><span>{draft.platform} · {statusLabel(draft.status)}</span><small>{new Date(draft.created_at).toLocaleString("zh-TW", { timeZone: "Asia/Taipei" })}</small></div><p>{draft.content}</p>{draft.image_url && <a href={draft.image_url} target="_blank" rel="noreferrer">查看圖片網址 ↗</a>}{draft.published_url && <a href={draft.published_url} target="_blank" rel="noreferrer">查看已發布貼文 ↗</a>}{draft.publish_error && <small className="form-error">發布回報：{draft.publish_error}</small>}{draft.scheduled_for && <small className="saved-schedule">希望發布：{new Date(draft.scheduled_for).toLocaleString("zh-TW", { timeZone: "Asia/Taipei" })}</small>}{draft.scheduled_for && Date.parse(draft.scheduled_for) > Date.now() && <small className="saved-schedule">排程發布尚未接好，這筆未來排程目前不能核准，避免提早發文。</small>}{draft.status === "draft" && (draft.platform === "Threads" || draft.platform === "Instagram") && <div className="assistant-form-actions"><button type="button" className="secondary-button" disabled={!makeSubmissionEnabled || approvalBusyId === draft.id} onClick={() => submitDraftForApproval(draft.id)}>{approvalBusyId === draft.id ? "送交中…" : makeSubmissionEnabled ? "送交 Notion 待核准" : "送交 Notion（設定中）"}</button><button type="button" className="primary-button" disabled={!publishEnabled || Boolean(draft.scheduled_for && Date.parse(draft.scheduled_for) > Date.now()) || approvalBusyId === draft.id || (draft.platform === "Instagram" && !draft.image_url)} onClick={() => approveAndPublishDraft(draft.id)}>{approvalBusyId === draft.id ? "處理中…" : publishEnabled ? "核准並發佈" : "核准並發佈（Make 尚未設定）"}</button></div>}{draft.status === "awaiting_approval" && <div className="assistant-form-actions"><small className="saved-schedule">Notion 待核准；也可在工作台核准。</small><button type="button" className="primary-button" disabled={!publishEnabled || Boolean(draft.scheduled_for && Date.parse(draft.scheduled_for) > Date.now()) || approvalBusyId === draft.id || (draft.platform === "Instagram" && !draft.image_url)} onClick={() => approveAndPublishDraft(draft.id)}>{approvalBusyId === draft.id ? "處理中…" : publishEnabled ? "工作台核准並發佈" : "核准並發佈（Make 尚未設定）"}</button></div>}{draft.status === "approved" && <small className="saved-schedule">已核准，等待 Make 發布流程接手；請勿重複核准。</small>}{draft.status === "draft" && draft.platform !== "Threads" && draft.platform !== "Instagram" && <small className="saved-schedule">此平台的送審與發布串接尚未設定，可先保存草稿。</small>}</article>)}</div> : <p className="empty-drafts">還沒有保存的草稿。你可以先手動輸入一篇測試。</p>}
     </section>
   </div>;
 }
