@@ -8,7 +8,6 @@ export async function POST(request: NextRequest) {
   if (!secureValueMatches(request.headers.get("x-doris-automation-key"), process.env.MAKE_SOCIAL_CALLBACK_SECRET)) {
     return NextResponse.json({ error: "未授權的自動化請求。" }, { status: 401 });
   }
-  if (!getSocialPublishConfig()) return NextResponse.json({ error: "Make 發布情境尚未設定並啟用。" }, { status: 503 });
   let input: unknown;
   try { input = await request.json(); } catch { return NextResponse.json({ error: "Notion 核准資料格式不正確。" }, { status: 400 }); }
   const body = typeof input === "object" && input !== null ? input as Record<string, unknown> : {};
@@ -18,15 +17,19 @@ export async function POST(request: NextRequest) {
 
   let supabase;
   try { supabase = createAdminClient(); } catch { return NextResponse.json({ error: "後端資料庫連線尚未完成設定。" }, { status: 503 }); }
-  let draftQuery = supabase.from("social_drafts").select("id, platform, content, image_url, scheduled_for, status, notion_page_id");
+  let draftQuery = supabase.from("social_drafts").select("id, platform, content, image_url, scheduled_for, approved_at, status, notion_page_id");
   draftQuery = draftId ? draftQuery.eq("id", draftId) : draftQuery.eq("notion_page_id", notionPageId);
   const { data: draft, error } = await draftQuery.maybeSingle();
   if (error || !draft) return NextResponse.json({ error: "找不到對應的工作台草稿。" }, { status: 404 });
   if (draft.status === "approved") {
+    if (draft.scheduled_for && Date.parse(draft.scheduled_for) > Date.now()) {
+      if (process.env.MAKE_SOCIAL_SCHEDULER_ENABLED !== "true") return NextResponse.json({ error: "社群排程流程尚未啟用，這筆草稿仍保持原核准狀態。" }, { status: 503 });
+      return NextResponse.json({ status: "approved", already_approved: true, scheduled: true, message: "此草稿已核准，會保留到排程時間再交給 Make 發布。" });
+    }
     const dispatch = await dispatchApprovedDraft(draft, "notion");
     return dispatch.ok
       ? NextResponse.json({ status: "approved", already_approved: true, dispatched: true })
-      : NextResponse.json({ error: dispatch.reason }, { status: 502 });
+      : NextResponse.json({ status: "approved", already_approved: true, publish_pending: true, message: dispatch.reason });
   }
   if (draft.status === "publishing" || draft.status === "published") {
     return NextResponse.json({ status: draft.status, already_processed: true });
@@ -34,19 +37,26 @@ export async function POST(request: NextRequest) {
   if (draft.status !== "draft" && draft.status !== "awaiting_approval") return NextResponse.json({ error: "此草稿目前不能核准。" }, { status: 409 });
   if (draft.platform !== "Threads" && draft.platform !== "Instagram") return NextResponse.json({ error: "目前只支援 Threads 與 Instagram 發布。" }, { status: 400 });
   if (draft.platform === "Instagram" && !draft.image_url) return NextResponse.json({ error: "Instagram 照片貼文需要圖片網址。" }, { status: 400 });
-  if (draft.scheduled_for && Date.parse(draft.scheduled_for) > Date.now()) return NextResponse.json({ error: "排程發布尚未接好；為避免提早發出，這筆未來排程沒有核准。" }, { status: 409 });
+  if (draft.scheduled_for && Date.parse(draft.scheduled_for) > Date.now() && process.env.MAKE_SOCIAL_SCHEDULER_ENABLED !== "true") {
+    return NextResponse.json({ error: "社群排程流程尚未啟用，草稿沒有變更。" }, { status: 503 });
+  }
 
   const { data: approved, error: updateError } = await supabase.from("social_drafts")
     .update({ status: "approved", approved_at: new Date().toISOString(), approved_via: "notion", publish_error: null, updated_at: new Date().toISOString() })
     .eq("id", draft.id).eq("status", draft.status)
-    .select("id, platform, content, image_url, scheduled_for, status, notion_page_id").maybeSingle();
+    .select("id, platform, content, image_url, scheduled_for, approved_at, status, notion_page_id").maybeSingle();
   if (updateError || !approved) return NextResponse.json({ error: "草稿已由另一處理核准；請查看目前狀態。" }, { status: 409 });
+
+  if (approved.scheduled_for && Date.parse(approved.scheduled_for) > Date.now()) {
+    return NextResponse.json({ status: "approved", scheduled: true, message: "Notion 已核准；草稿會保留到排程時間再交給 Make 發布。" });
+  }
 
   const dispatch = await dispatchApprovedDraft(approved, "notion");
   if (!dispatch.ok) {
     await supabase.from("social_drafts").update({ status: draft.status, approved_at: null, approved_via: null, publish_error: dispatch.reason, updated_at: new Date().toISOString() })
       .eq("id", approved.id).eq("status", "approved");
-    return NextResponse.json({ error: dispatch.reason }, { status: 502 });
+    return NextResponse.json({ error: `${dispatch.reason} 草稿已恢復原狀，請完成連線後再核准。` }, { status: 502 });
   }
   return NextResponse.json({ status: "approved", message: "Notion 核准已記錄，Make 已收到發布工作。" });
 }
+

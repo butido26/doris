@@ -16,8 +16,10 @@ export async function POST(request: NextRequest) {
   const { data: draft, error } = await supabase.from("social_drafts")
     .update({ status: "publishing", updated_at: new Date().toISOString() })
     .eq("id", draftId).eq("status", "approved")
+    .or(`scheduled_for.is.null,scheduled_for.lte.${new Date().toISOString()}`)
     .select("id, platform, content, image_url, scheduled_for, notion_page_id").maybeSingle();
   if (error) return NextResponse.json({ error: "無法取得發布工作。" }, { status: 503 });
   if (!draft) return NextResponse.json({ error: "草稿已被處理或目前未核准，略過以防重複發布。" }, { status: 409 });
   return NextResponse.json({ draft });
 }
+

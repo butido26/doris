@@ -6,6 +6,7 @@ const AUTOMATION_API_PATHS = new Set([
   "/api/social-drafts/publish-result",
   "/api/social-drafts/notion-intake",
   "/api/social-drafts/notion-approve",
+  "/api/social-drafts/dispatch-due",
 ]);
 
 export async function updateSession(request: NextRequest) {
