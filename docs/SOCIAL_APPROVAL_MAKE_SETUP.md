@@ -1,5 +1,7 @@
 # Social approval and publishing handoff
 
+> **Two separate Make webhooks:** the **submission webhook** receives a draft for Notion review and does not publish; the **publishing webhook** runs only after approval and must claim the draft before any platform module runs. See [Make Webhook roles and two-computer sync](MAKE_WEBHOOKS_AND_PC_SYNC.md) for the variable names, safety gates, and PC 1 → PC 2 handoff.
+
 This contract lets the workbench and a Notion-triggered Make scenario approve the same Supabase draft. It does not publish until `MAKE_SOCIAL_PUBLISH_ENABLED=true` and the Make publishing scenario is fully configured.
 
 ## State flow

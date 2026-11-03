@@ -1,5 +1,7 @@
 # 社群工作流上線規劃
 
+> **注意：送審與發布是兩個不同的 Make Webhook。** 送審 Webhook 只把草稿交給 Notion 待審，不會發文；發布 Webhook 只在工作台或 Notion 核准後觸發，並須先成功 claim 草稿。電腦 1、電腦 2 的同步及整理順序，請看[Make Webhook 分工與電腦同步指南](MAKE_WEBHOOKS_AND_PC_SYNC.md)。
+
 ## 希望達到的操作
 
 Threads 是第一個完成的發布平台。工作台保存草稿後，Supabase 是唯一的工作狀態來源；Make 將草稿同步到 Notion 供查閱與核准。使用者可以在工作台或 Notion 核准同一筆草稿。核准後才交給 Make 發布，發布結果回寫 Supabase，並同步更新 Notion。網站保存或 AI 產文都不會自行發布。
